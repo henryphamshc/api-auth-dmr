@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Security.Claims;
+using System.Threading.Tasks;
 using JwtAuthDemo.Infrastructure;
 using JwtAuthDemo.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,7 +31,7 @@ namespace JwtAuthDemo.IntegrationTests
         }
 
         [TestMethod]
-        public void ShouldRotateRefreshToken()
+        public async Task ShouldRotateRefreshToken()
         {
             var jwtConfig = _serviceProvider.GetRequiredService<JwtTokenConfig>();
             var jwtAuthManager = _serviceProvider.GetRequiredService<IJwtAuthManager>();
@@ -43,7 +44,7 @@ namespace JwtAuthDemo.IntegrationTests
             };
 
             var tokens1 = jwtAuthManager.GenerateTokens(userName, claims, now.AddMinutes(-20));
-            var tokens2 = jwtAuthManager.Refresh(tokens1.RefreshToken.TokenString, tokens1.AccessToken, now);
+            var tokens2 = await jwtAuthManager.Refresh(tokens1.RefreshToken.TokenString, tokens1.AccessToken, now);
 
             Assert.AreNotEqual(tokens1.AccessToken, tokens2.AccessToken);
             Assert.AreNotEqual(tokens1.RefreshToken.TokenString, tokens2.RefreshToken.TokenString);

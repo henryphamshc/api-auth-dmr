@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using JwtAuthDemo.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -11,7 +12,7 @@ namespace JwtAuthDemo.Services
         bool IsAnExistingUser(string userName);
         bool IsValidUserCredentials(string userName, string password);
         string GetUserRole(string userName);
-        User GetUser(string userName, string password);
+        Task<User> GetUser(string userName, string password);
     }
 
     public class UserService : IUserService
@@ -79,11 +80,11 @@ namespace JwtAuthDemo.Services
             return UserRoles.BasicUser;
         }
 
-        public User GetUser(string userName, string password)
+        public async Task<User> GetUser(string userName, string password)
         {
-            var user = _context.Users.Where(x=>x.IsShow == true)
+            var user = await _context.Users.Where(x=>x.IsShow == true)
                 .Include(x=>x.UserSystems)
-                .Include(x=>x.Role).FirstOrDefault(x => x.EmployeeID.ToLower() == userName.ToLower());
+                .Include(x=>x.Role).FirstOrDefaultAsync(x => x.EmployeeID.ToLower() == userName.ToLower());
             if (!VerifyPasswordHash(password, user.PasswordHash, user.PasswordSalt))
                 return null;
 

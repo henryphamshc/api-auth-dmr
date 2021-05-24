@@ -37,7 +37,7 @@ namespace JwtAuthDemo.Controllers
         }
         [AllowAnonymous]
         [HttpPost("login")]
-        public ActionResult Login([FromBody] LoginRequest request)
+        public async Task<ActionResult> Login([FromBody] LoginRequest request)
         {
             if (!ModelState.IsValid)
             {
@@ -48,7 +48,7 @@ namespace JwtAuthDemo.Controllers
             {
                 return Unauthorized();
             }
-            var user = _userService.GetUser(request.UserName, request.Password);
+            var user = await _userService.GetUser(request.UserName, request.Password);
             var claims = new[]
             {
                new Claim(ClaimTypes.NameIdentifier, user.ID.ToString()),
@@ -57,11 +57,11 @@ namespace JwtAuthDemo.Controllers
                 new Claim(ClaimTypeEnum.Role.ToString(), user.RoleID.ToString(),ClaimTypeEnum.Role.ToString())
             };
 
-            var jwtResult = _jwtAuthManager.GenerateTokens(request.UserName, claims, DateTime.Now);
+            var jwtResult =  _jwtAuthManager.GenerateTokens(request.UserName, claims, DateTime.Now);
 
-            _jwtAuthManager.AddRefreshToken(jwtResult.RefreshToken);
+           await  _jwtAuthManager.AddRefreshToken(jwtResult.RefreshToken);
             // Xóa những token đã hết hạn khỏi db
-            _jwtAuthManager.RemoveExpiredRefreshTokens(DateTime.Now);
+           await _jwtAuthManager.RemoveExpiredRefreshTokens(DateTime.Now);
             _logger.LogInformation($"User [{request.UserName}] logged in the system.");
             var userprofile = new UserProfileDto()
             {
@@ -130,7 +130,7 @@ namespace JwtAuthDemo.Controllers
                 }
 
                 var accessToken = await HttpContext.GetTokenAsync("Bearer", "access_token");
-                var jwtResult = _jwtAuthManager.Refresh(request.RefreshToken, accessToken, DateTime.Now);
+                var jwtResult = await _jwtAuthManager.Refresh(request.RefreshToken, accessToken, DateTime.Now);
                 _logger.LogInformation($"User [{userName}] has refreshed JWT token.");
                 return Ok(new LoginResult
                 {
@@ -172,7 +172,7 @@ namespace JwtAuthDemo.Controllers
                 new Claim("OriginalUserName", userName ?? string.Empty)
             };
 
-            var jwtResult = _jwtAuthManager.GenerateTokens(request.UserName, claims, DateTime.Now);
+            var jwtResult =  _jwtAuthManager.GenerateTokens(request.UserName, claims, DateTime.Now);
             _logger.LogInformation($"User [{request.UserName}] is impersonating [{request.UserName}] in the system.");
             return Ok(new LoginResult
             {
@@ -202,7 +202,7 @@ namespace JwtAuthDemo.Controllers
                 new Claim(ClaimTypes.Role, role)
             };
 
-            var jwtResult = _jwtAuthManager.GenerateTokens(originalUserName, claims, DateTime.Now);
+            var jwtResult =  _jwtAuthManager.GenerateTokens(originalUserName, claims, DateTime.Now);
             _logger.LogInformation($"User [{originalUserName}] has stopped impersonation.");
             return Ok(new LoginResult
             {

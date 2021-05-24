@@ -7,7 +7,9 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 using JwtAuthDemo.Data;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 namespace JwtAuthDemo.Infrastructure
@@ -16,10 +18,10 @@ namespace JwtAuthDemo.Infrastructure
     {
         IImmutableDictionary<string, RefreshToken> UsersRefreshTokensReadOnlyDictionary { get; }
         JwtAuthResult GenerateTokens(string username, Claim[] claims, DateTime now);
-        JwtAuthResult Refresh(string refreshToken, string accessToken, DateTime now);
-        void RemoveExpiredRefreshTokens(DateTime now);
-        void RemoveRefreshTokenByUserName(string userName);
-        void AddRefreshToken(RefreshToken refreshToken);
+        Task<JwtAuthResult>  Refresh(string refreshToken, string accessToken, DateTime now);
+        Task RemoveExpiredRefreshTokens(DateTime now);
+        Task RemoveRefreshTokenByUserName(string userName);
+        Task AddRefreshToken(RefreshToken refreshToken);
         (ClaimsPrincipal, JwtSecurityToken) DecodeJwtToken(string token);
     }
 
@@ -41,15 +43,15 @@ namespace JwtAuthDemo.Infrastructure
         }
 
         // optional: clean up expired refresh tokens
-        public void RemoveExpiredRefreshTokens(DateTime now)
+        public async Task RemoveExpiredRefreshTokens(DateTime now)
         {
-            var expiredTokens = _context.RefreshToken.Where(x => x.ExpireAt < now).ToList();
+            var expiredTokens = await _context.RefreshToken.Where(x => x.ExpireAt < now).ToListAsync();
             if (expiredTokens.Count > 0)
             {
                 _context.RemoveRange(expiredTokens);
                 try
                 {
-                    _context.SaveChanges();
+                   await  _context.SaveChangesAsync();
 
                 }
                 catch (Exception ex)
@@ -60,15 +62,15 @@ namespace JwtAuthDemo.Infrastructure
         }
 
         // can be more specific to ip, user agent, device name, etc.
-        public void RemoveRefreshTokenByUserName(string userName)
+        public async Task RemoveRefreshTokenByUserName(string userName)
         {
-            var refreshTokens = _context.RefreshToken.Where(x => x.UserName == userName).ToList();
+            var refreshTokens = await _context.RefreshToken.Where(x => x.UserName == userName).ToListAsync();
             if (refreshTokens.Count > 0)
             {
                 _context.RemoveRange(refreshTokens);
                 try
                 {
-                    _context.SaveChanges();
+                   await  _context.SaveChangesAsync();
 
                 }
                 catch (Exception ex)
@@ -110,7 +112,7 @@ namespace JwtAuthDemo.Infrastructure
             };
         }
 
-        public JwtAuthResult Refresh(string refreshToken, string accessToken, DateTime now)
+        public async Task<JwtAuthResult> Refresh(string refreshToken, string accessToken, DateTime now)
         {
             var (principal, jwtToken) = DecodeJwtToken(accessToken);
             if (jwtToken == null || !jwtToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256))
@@ -137,7 +139,7 @@ namespace JwtAuthDemo.Infrastructure
             existingRefreshToken.TokenString = refreshTokenResult.RefreshToken.TokenString;
             existingRefreshToken.ExpireAt = now.AddMinutes(_jwtTokenConfig.RefreshTokenExpiration);
             _context.RefreshToken.Update(existingRefreshToken);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
 
             return refreshTokenResult; // need to recover the original claims
         }
@@ -173,12 +175,12 @@ namespace JwtAuthDemo.Infrastructure
             return Convert.ToBase64String(randomNumber);
         }
 
-        public void AddRefreshToken(RefreshToken refreshToken)
+        public async Task AddRefreshToken(RefreshToken refreshToken)
         {
-            _context.RefreshToken.Add(refreshToken);
+           await  _context.RefreshToken.AddAsync(refreshToken);
             try
             {
-                _context.SaveChanges();
+                await _context.SaveChangesAsync();
             }
             catch
             {
